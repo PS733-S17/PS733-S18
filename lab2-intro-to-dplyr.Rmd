@@ -1,0 +1,211 @@
+---
+title: "Introduction to dply"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## To whet your appetite
+
+How do we change a column name in base R (i.e. normal, off-the-shelf R)?
+
+```{r}
+# Data frame with original names
+df <- data.frame(a = 1:3, b = 1:3)
+df
+
+# Data frame with new names
+colnames(df)[colnames(df) == "a"] <- "newa"
+df
+```
+
+Why does it have to take so many keystrokes just to change variable names? Isn't R supposed to be a "statistical" language? Don't Stata folks miss being able to `rename a newa`?
+
+With the package `dplyr`, yes R can be a lot more convenient. This is an introduction to how you can revamp most of your data management tasks with `dplyr`.
+
+## Installation
+
+`install.packages("dplyr")` if you don't have it yet
+
+```{r}
+library("dplyr")
+```
+
+## Philosophy
+
+From [dplyr's creator](http://dplyr.tidyverse.org/),
+
+    dplyr is a grammar of data manipulation, providing a consistent set of verbs that help you solve the most common data manipulation challenges:
+    
+        mutate() adds new variables that are functions of existing variables
+        select() picks variables based on their names.
+        filter() picks cases based on their values.
+        summarise() reduces multiple values down to a single summary.
+        arrange() changes the ordering of the rows.
+
+and more ...
+
+## Data
+
+`install.packages("nycflights13")` if you don't have it yet.
+
+```{r}
+library("nycflights13")
+flights
+```
+
+Notice how the object is called a `tibble`, a modern data frame with nice features like smart printing (and other programmatic niceties). You should run it in RStudio to see the full features.
+
+## Filter rows with `filter()`
+
+```{r}
+# Flights on the January 1
+filter(flights, month == 1, day == 1)
+```
+
+How to find flights that fly in January or February?
+How to find flights that depart later than scheduled?
+How to find flights whose distance is longer than the median?
+
+## Arrange rows with `arrange()`
+
+```{r}
+# Using base R
+flights[order(flights$year, flights$month, flights$day), ]
+
+# Using dplyr
+arrange(flights, year, month, day)
+```
+
+```{r}
+# Descending order
+arrange(flights, desc(arr_delay))
+```
+
+## Select columns with `select()`
+
+```{r}
+select(flights, year, month, day)
+select(flights, year:day) # Stata folks love this
+select(flights, -(year:day))
+```
+
+You can even select columns based on how the column names `starts_with()`, `ends_with()`, `matches()`, or `contains()`!
+
+```{r}
+select(flights, ends_with("time"))
+```
+
+This is massively useful for political science panel datasets when the variables are often `gdp_2000, gdp_2001, ...`
+
+You can also rename variables
+
+```{r}
+select(flights, origin, destination = dest)
+```
+
+An example from my own research of Japanese FDI
+
+    d <- select(d_raw,
+             nation, region, province, city, zip_code,
+             investment_mode = mode,
+             foundint_year = fdtn_yr,
+             matches("^gm.*[0-9]{2}$"), # nationality of subsidiary general manager
+             matches("^temp.*[0-9]{2}$"), # total employees
+             matches("^jemp.*[0-9]{2}$"), # Japanese employees
+             matches("^uscptl.*[0-9]{2}$"), # capital invested in subsidiary
+             matches("^ussale.*[0-9]{2}$"), # sales of subsidiary
+             matches("^prft.*[0-9]{2}$"), # profitability of subsidiary
+             matches("ja1.*[0-9]{2}$"), # ownership of primary japanese partnert
+             matches("^sic") # SIC code
+    )
+    
+## Add new columns with `mutate()`
+
+Think about using the current data frame to create a slightly different one based on it. Hence "mutating"
+
+```{r}
+mutate(flights, speed = distance / air_time * 60)
+```
+
+You can even refer to the variable you just created within one function call!
+
+```{r}
+mutate(flights, 
+       speed = distance / air_time * 60,
+       speed_kmh = speed * 1.6)
+```
+
+## Let's put these verbs to use!
+
+Here's another mind-blowing trick. We often process data in sequential steps. Let's say we want to investigate flights from NYC to where tend to be really slow. We do it in these steps:
+
+- Find the flights out of JFK or LaGuardia (LGA) during the month of Janurary
+- Calculate speed
+- Keep flights that are really slow (< 5 percentile) and really fast (> 95 percentile)
+- Order by speed, and show the destination airport.
+
+In base R, you would:
+```{r}
+flights_new <- flights[flights$origin == "JFK" | flights$origin == "LGA", ]
+flights_new <- flights_new[flights_new$month == 1, ]
+# and so on ...
+```
+
+With `dplyr`, it's slightly better
+```{r}
+flights_new <- mutate(
+                  filter(
+                    flights, origin == "JFK" | origin == "LGA", month == 1),
+                  speed = distance / air_time * 60)
+# and so on
+```
+
+But the code still doesn't read like English. We still have to spend mental energy to translate the code into what we want to do conceptually.
+
+Introducing the pipe `%>%`, which pipes the result from the previous step into the next step. Like so:
+
+```{r}
+flights_new <- flights %>%
+  filter(origin == "JFK" | origin == "LGA", month == 1) %>%
+  mutate(speed = distance / air_time * 60)
+```
+
+Now code reads like English! Even those unfamiliar with R would know what the following does
+
+```{r}
+flights %>%
+  filter(month == 1, day == 1, origin == "LGA") %>%
+  filter(arr_delay < 0) %>%
+  select(month, day, ends_with("arr_time"), arr_delay, origin, dest) %>%
+   arrange(arr_delay)
+```
+
+## Grouped operation with `group_by()` and `summarize()`
+
+The final common data management task is to summarize things by group. To give a Political Science example, given data on countries across time, you may want to calculate fluctuation in GDP by country / continent / regime type.
+
+This is stupidly ugly in base R so I'm not gonna even mention it...
+
+Here's `dplyr`. Let's calculate average departure delay by month.
+
+```{r}
+flights %>%
+  group_by(month) %>%
+  summarize(average_dep_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  arrange(desc(average_dep_delay))
+```
+
+## Other dplyr features
+
+Speed
+SQL-like joining (i.e. merging)
+Connection to database
+
+## Practice!
+
+We're interested in how GDP per capita varies within each continent. Using data from 2000-2010, calculate the variance of GDP per capita for each continent for each year. To eliminate the effects of the outliers, only keep data from coutries that are between the 25% and 75% percentile in terms of population.
+
+Use package `WDI` to download these data.

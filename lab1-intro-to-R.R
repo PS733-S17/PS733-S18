@@ -1,5 +1,7 @@
 rm(list = ls())
 
+head(mtcars)
+
 # Goal: 
 # - Model mpg ~ hp (horsepower) for each subset of cylinder type.
 # - Extract the p-value for each
@@ -54,14 +56,16 @@ mat1[, 1]
 mat1[1, ]
 
 # used in most analysis
-df_1 <- data.frame(a = c(1, 2, 3, 4),
-                   b = c("a", "b", "c", "d"))
+df_1 <- data.frame(a = c(1, 2, 3, 1),
+                   b = c("a", "b", "c", "e"))
 df_1$a
 df_1$b
 
-# ---- Subsetting ----
+df_1[c(TRUE, FALSE, FALSE, TRUE), ]
 
+df_1$a == 1
 
+df_1[df_1$a == 1, ]
 
 # ---- Loop ----
 
@@ -71,25 +75,42 @@ for (i in c(1, 2, 3)) {
   print(i + 10)
 }
 
+# To construct a loop, think about what stays the same, and what changes
+
+
 for (i in c(4, 6, 8)) {
   print(paste("Now building model for cyl =", i))
   print(lm(mpg ~ hp, data = mtcars[mtcars$cyl == i, ]))
 }
 
+for (i in c(4, 6, 8)) {
+  m_cyl <- lm(mpg ~ hp, data = mtcars[mtcars$cyl == i, ])
+  print(summary(m_cyl)$coefficients["hp", "Pr(>|t|)"])
+}
 
 # ---- Function ----
 
-
-
-m1 <- lm(mpg ~ disp, data = mtcars)
-
-m_cyl1 <- lm(mpg ~ disp, data = mtcars[mtcars$cyl == 6, ])
-
-
-summary(m_cyl1)$coefficients["disp", "Pr(>|t|)"]
-
-
-values_of_cylinders <- unique(mtcars$cyl)
-for (cyl in values_of_cylinders) {
-  lm(mpg ~ disp, data = mtcars[mtcars$cyl == 6, ])
+f_1 <- function(x) {
+  # do stuff with x, then return the result
+  y <- x ** 2
+  return(y)
 }
+
+f_1(2)
+f_1(10)
+
+f_modeling <- function(variable_name) {
+  unique_values <- unique(mtcars[, variable_name])
+  result <- rep(NA, length(unique_values))
+  for (i in 1:length(unique_values)) {
+    value <- unique_values[i]
+    my_data <- mtcars[mtcars[, variable_name] == value, ]
+    my_model <- lm(mpg ~ hp, data = my_data)
+    my_pvalue <- summary(my_model)$coefficients["hp", "Pr(>|t|)"]
+    result[i] <- my_pvalue
+  }
+  return(result)
+}
+
+f_modeling("cyl")
+f_modeling("gear")
