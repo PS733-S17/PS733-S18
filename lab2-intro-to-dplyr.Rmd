@@ -66,8 +66,23 @@ filter(flights, month == 1, day == 1)
 ```
 
 How to find flights that fly in January or February?
+
+```{r}
+filter(flights, month == 1 | month == 2)
+```
+
+
 How to find flights that depart later than scheduled?
+
+```{r}
+filter(flights, dep_time > sched_dep_time)
+```
+
 How to find flights whose distance is longer than the median?
+
+```{r}
+filter(flights, distance > median(distance))
+```
 
 ## Arrange rows with `arrange()`
 
@@ -147,6 +162,17 @@ Here's another mind-blowing trick. We often process data in sequential steps. Le
 - Keep flights that are really slow (< 5 percentile) and really fast (> 95 percentile)
 - Order by speed, and show the destination airport.
 
+```{r}
+flights %>%
+  filter(origin == "JFK" | origin == "LGA", month == 1) %>%
+  mutate(speed = distance / air_time * 60) %>%
+  filter(speed < quantile(speed, 0.05, na.rm=TRUE) | 
+         speed > quantile(speed, 0.95, na.rm=TRUE)) %>%
+  arrange(speed) %>%
+  select(speed, dest)
+```
+
+
 In base R, you would:
 ```{r}
 flights_new <- flights[flights$origin == "JFK" | flights$origin == "LGA", ]
@@ -168,7 +194,7 @@ But the code still doesn't read like English. We still have to spend mental ener
 Introducing the pipe `%>%`, which pipes the result from the previous step into the next step. Like so:
 
 ```{r}
-flights_new <- flights %>%
+flights %>%
   filter(origin == "JFK" | origin == "LGA", month == 1) %>%
   mutate(speed = distance / air_time * 60)
 ```
@@ -209,3 +235,38 @@ Connection to database
 We're interested in how GDP per capita varies within each continent. Using data from 2000-2010, calculate the variance of GDP per capita for each continent for each year. To eliminate the effects of the outliers, only keep data from coutries that are between the 25% and 75% percentile in terms of population.
 
 Use package `WDI` to download these data.
+
+Solution:
+```{r}
+library("WDI")
+df <- WDI(indicator = c("NY.GDP.PCAP.CD", "SP.POP.TOTL"), 
+          start = 2000, end = 2010,
+          extra = TRUE)
+df %>%
+  select(gdp_per_cap = NY.GDP.PCAP.CD, pop = SP.POP.TOTL, region) %>%
+  filter(region != "Aggregates", region != "<NA>") %>%
+  group_by(region) %>%
+  filter(pop > quantile(pop, 0.25, na.rm = TRUE), pop < quantile(pop, 0.75, na.rm = TRUE)) %>%
+  summarize(gdp_variance = var(gdp_per_cap, na.rm = TRUE))
+```
+
+## Merging in dplyr
+
+```{r}
+band_members
+```
+```{r}
+band_instruments
+```
+
+```{r}
+inner_join(band_members, band_instruments, by=c("name" = "name"))
+```
+```{r}
+left_join(band_members, band_instruments)
+```
+
+```{r}
+anti_join(band_members, band_instruments)
+```
+
