@@ -1,0 +1,241 @@
+---
+title: 'Lab 3: Intro to ggplot2'
+author: "Anh Le (anh.le@duke.edu)"
+output: html_document
+---
+
+Most materials and inspiration come from the `ggplot2` book by Hadley Wickham.
+
+# Introduction 
+
+```{r}
+# install.packages("ggplot2") if you need it
+library("ggplot2")
+library("gridExtra")
+```
+
+This tutorial aims to teach you not only about the `ggplot2` syntax but also a new way of thinking about graphics. What's revolutionary about `ggplot2` is really this "Grammar of Graphics" thinking (i.e. what `gg-` stands for).
+
+# Deconstructing a Scatterplot (learning about **Aesthetics**)
+
+Below is a simple scatterplot. How exactly is data represented in a scatterplot? 
+
+```{r}
+df <- data.frame(x = c(1, 2, 4), y = c(1, 3, 2))
+ggplot(data = df) + geom_point(aes(x, y)) + xlim(0, 5) + ylim(0, 5)
+```
+
+Each observation is represented by a point, whose x- and y- coordinate represent the values of the two variables. If I have to describe to you how to recreate the plot, I can just give you a list of 3 tuples, one tuple for each point `(1, 1), (2, 3), (4, 2)`. This list is the essence of a scatterplot.
+
+Along with the coordinates, each point / tuple can also have size, color, and shape.
+
+These attribute are called **aesthetics**, and are the properties that can be perceived on the graphic. Each aesthetic can be mapped to a variable, or set to a constant value.
+
+**Q (conceptual):** Without looking at the code, in this plot, what are the aesthetics, and what variables are they mapped to?
+
+**Q (ggplot syntax):** Now look at the code. How did I specify the mapping?
+
+**Q (comparison with base R):** How would you create the color plot in base R? Do you see how `ggplot2` is less ad-hoc and more expressive?
+
+```{r, fig.height=8, fig.width = 5, fig.align='center'}
+data("mpg")
+
+p1 <-  ggplot(data = mpg, aes(x = displ, y = hwy)) + 
+  geom_point() +
+  labs(y = "Mile per gallon", x = "Engine size")
+
+p2 <- ggplot(data = mpg, aes(x = displ, y = hwy, color = factor(cyl))) + 
+  geom_point() +
+  labs(y = "Mile per gallon", x = "Engine size")
+
+p3 <- ggplot(data = mpg, aes(x = displ, y = hwy, shape = factor(cyl))) + 
+  geom_point() +
+  labs(y = "Mile per gallon", x = "Engine size")
+
+grid.arrange(p1, p2, p3, nrow = 3)
+```
+
+Note that the **aesthetics** is the essence of the graph -- that's all we need to map the data to the graphics. In the plot above, I use **points** as the **geometric** form (hence `geom_point`), but it doesn't have to be. I can also use other **geometric** form, such as **line**, or **bar** (`geom_line`, `geom_bar`). Notice how the geomtric form changes, but the fundamental mapping of data to graphics does not change.
+
+This is what we means by "grammar of graphics". The line plot and bar plot are grammatically correct, even though it makes little sense.
+
+```{r, fig.height=8, fig.width = 5}
+p_point <- ggplot(data = mpg, aes(x = displ, y = hwy)) + 
+  geom_point() +
+  labs(y = "Mile per gallon", x = "Engine size")
+
+p_line <- ggplot(data = mpg, aes(x = displ, y = hwy)) + 
+  geom_line() +
+  labs(y = "Mile per gallon", x = "Engine size")
+
+p_bar <- ggplot(data = mpg, aes(x = displ, y = hwy)) + 
+  geom_bar(stat = 'identity', position = "identity", color = 'red') +
+  labs(y = "Mile per gallon", x = "Engine size")
+
+grid.arrange(p_point, p_line, p_bar, nrow=3)
+```
+
+# Setting aesthetics to a constant
+
+Sometimes I want to simply use a different color for my geoms, which is different from mapping the color to a variable. See:
+
+```{r, fig.height = 6}
+p1 <- ggplot(data = mpg, aes(x = displ, y = hwy)) + 
+  geom_point(color = 'red')
+
+p2 <- ggplot(data = mpg, aes(x = displ, y = hwy)) + 
+  geom_point(aes(color = factor(cyl)))
+
+grid.arrange(p1, p2, nrow = 2)
+```
+
+# Grouping
+
+**Q**: Without looking at the code, what **aes** are specified in this plot?
+
+```{r, echo=FALSE}
+data(Oxboys, package="nlme")
+ggplot(Oxboys, aes(age, height, group = Subject)) + 
+  geom_line() +
+  labs(title = "Height and Age of Oxford boys")
+```
+
+The code that produces the line plot is below (notice the **group** aesthetics). What would be consequence of not specifying this aesthetics?
+
+```
+ggplot(Oxboys, aes(age, height, group = Subject)) + 
+  geom_line() +
+  labs(title = "Height and Age of Oxford boys")
+```
+
+```{r}
+ggplot(Oxboys, aes(age, height)) + 
+  geom_line() +
+  labs(title = "Height and Age of Oxford boys")
+```
+
+```{r, echo = FALSE, fig.height = 9}
+p1 <- ggplot(Oxboys, aes(age, height, group = Subject)) + 
+  geom_line() +
+  labs(title = "Height and Age of Oxford boys")
+
+p2 <- ggplot(Oxboys, aes(age, height)) + 
+  geom_line() +
+  labs(title = "Height and Age of Oxford boys")
+
+p3 <- ggplot(Oxboys, aes(age, height)) + 
+  geom_point() +
+  labs(title = "Height and Age of Oxford boys")
+
+grid.arrange(p3, p2, p1, nrow = 3)
+```
+
+
+# More about geoms
+
+There are many **geom** built into ggplot2 [see this doc](http://sape.inf.usi.ch/quick-reference/ggplot2/geom). With this wide variety of selection, you can build all the common plot types.
+
+**Q (common plot):** Think about how different **geom** can be useful:
+
+- `geom_text` [example](http://docs.ggplot2.org/current/geom_text.html)
+- `geom_vline` [example](http://stackoverflow.com/questions/5388832/how-to-get-a-vertical-geom-vline-to-an-x-axis-of-class-date)
+- `geom_errorbar` [example](http://docs.ggplot2.org/0.9.3.1/geom_errorbar.html)
+- `geom_polygon` [example](http://zevross.com/blog/2014/07/16/mapping-in-r-using-the-ggplot2-package/)
+
+But the magic is really in building any custom plot that you want, mixing and matching different **geoms**.
+
+```{r}
+ggplot(data = mpg, aes(displ, hwy, color = factor(cyl))) +
+  geom_point() +
+  geom_smooth(data= subset(mpg, cyl != 5), method="lm")
+```
+
+# Building a plot layer by layer
+
+As you may have noticed, the last plot has two geoms. In fact, we can add as many geoms as we want. This is thought of as building the plot layer by layer.
+
+```{r}
+# First I add geom_point as the first layer
+ggplot(data = mpg, aes(displ, hwy, color = factor(cyl))) +
+  geom_point()
+
+# Then I add geom_smooth as the second layer
+ggplot(data = mpg, aes(displ, hwy, color = factor(cyl))) +
+  geom_point() +
+  geom_smooth(data= subset(mpg, cyl != 5), method="lm")
+
+```
+
+A rather extreme example of layering:
+
+![](http://i.stack.imgur.com/KGjaw.png)
+
+# Overriding default aesthetics mapping
+
+Now that we know how to build the plot layer by layer, sometimes the situation demands that we have different aesthetics mapping for each layer.
+
+For example, consider the Oxford boy dataset. This is panel dataset, and I want to build 2 layers: a boxplot layer for each occasion (i.e. variation across boys at each time point), and a line layer for each boy (i.e. variation over time of each boy).
+
+```{r}
+ggplot(data = Oxboys, aes(Occasion, height)) +
+  geom_boxplot()
+
+ggplot(data = Oxboys, aes(Occasion, height, group = Subject)) +
+  geom_line()
+```
+
+I can specify an aesthetic mapping specific to each layer as follows
+
+```{r}
+ggplot(data = Oxboys) +
+  geom_boxplot(aes(Occasion, height)) +
+  geom_line(aes(Occasion, height, group = Subject), color = 'blue')
+```
+
+# Programming with ggplot2
+
+Like `dplyr`, `ggplot2` belongs to a set of R packages called the `tidyverse`, whose philosophy is to make statistical programming in R as convenient as possible.
+
+In `ggplot2`, it means that there are a lot of ways to reduce repitition in your code (i.e. the DRY principle - Don't Repeat Yourself).
+
+When ``zooming'' in on the plot, it's useful to use \f{last_plot}
+iteratively to quickly find the best view.
+
+```{r}
+ggplot(data = diamonds) + geom_point(aes(x, y))
+last_plot() + xlim(3, 11) + ylim(3, 11)
+last_plot() + xlim(4, 10) + ylim(4, 10)
+last_plot() + xlim(4, 5) + ylim(4, 5)
+last_plot() + xlim(4, 4.5) + ylim(4, 4.5)
+```
+
+Saving a scale to a variable makes it easy to apply exactly the same
+scale to multiple plots.  You can do the same thing with layers and
+facets too.
+
+```{r}
+gradient_rb <- scale_colour_gradient(low = "red", high = "blue")
+ggplot(data = mpg) + geom_point(aes(cty, hwy, color = displ)) + gradient_rb
+ggplot(data = msleep) + geom_point(aes(bodywt, brainwt, color = awake)) + gradient_rb
+```
+
+Creating a custom geom function saves typing when creating plots with similar (but not the same) components.
+```{r, fig.asp=0.5}
+geom_lm <- function(formula = y ~ x) {
+  geom_smooth(formula = formula, se = FALSE, method = "lm")
+}
+ggplot(data = mtcars, aes(mpg, wt)) + geom_point() + geom_lm()
+library(splines)
+ggplot(data = mtcars, aes(mpg, wt)) + geom_point() + geom_lm(y ~ ns(x, 3))
+```
+
+# Other extensions to ggplot2
+
+Since programming with `ggplot2` is easy, a lot of people have contributed their own extensions.
+
+See full list here: http://www.ggplot2-exts.org/gallery/
+
+My favorites:
+- https://github.com/jrnold/ggthemes : custom made themes for ggplot2, e.g. Stata, Excel
+- https://github.com/dgrtwo/gganimate : animated graph
+- https://github.com/slowkow/ggrepel : automatically un-overlap text labels
